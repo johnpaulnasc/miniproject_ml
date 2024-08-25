@@ -7,6 +7,38 @@ import random
 from random import sample 
 from tqdm import tqdm
 
+class PLA:
+    def __init__(self, max_iter=1000):
+        self.max_iter = max_iter
+        self.w = None
+
+    def fit(self, X, y):
+        self.w = np.zeros(X.shape[1])
+        
+        def constroiListaPCI(X, y, w):
+            listaPCI = []
+            for i in range(len(y)):
+                if np.sign(np.dot(w, X[i])) != y[i]:
+                    listaPCI.append(i)
+            return listaPCI
+
+        listaPCI = constroiListaPCI(X, y, self.w)
+        
+        iter_count = 0
+        while len(listaPCI) > 0 and iter_count < self.max_iter:
+            i = np.random.choice(listaPCI)
+            
+            self.w = self.w + y[i] * X[i]
+            
+            listaPCI = constroiListaPCI(X, y, self.w)
+            iter_count += 1
+
+    def predict(self, X):
+        return np.sign(np.dot(X, self.w))
+
+    def get_w(self):
+        return self.w
+
 class PocketPLA:
     def __init__(self, iterations=1000, n_min=50, n_max=200):
         self.iterations = iterations
@@ -81,58 +113,51 @@ class LinearRegression():
         return self.w
 
 class LogisticRegression:
-    
-    def __init__(self, eta=0.1, iter=1000, batch_size=2048):
+    def __init__(self, eta=0.1, tmax=1000, bs=2048):
         self.eta = eta
-        self.iter = iter
-        self.batch_size = batch_size
-        self.w = None
+        self.tmax = tmax
+        self.batch_size = bs
 
-    def __str__(self):
-        return "Logistic Regression"
-    
-    def fit(self, X, y, iter=None, lamb=1e-6):
+    def fit(self, _X, _y):
+        X = np.array(_X)
+        y = np.array(_y)
+        N = X.shape[0]
+        d = X.shape[1]
+        w = np.zeros(d, dtype=float)
+        self.w = []
 
-        if iter is not None:
-            self.iter = iter
+        for i in range(self.tmax):
+            vsoma = np.zeros(d, dtype=float)
 
-        N, d = X.shape
-        X = np.array(X)
-        y = np.array(y).reshape(-1, 1)
-        w = np.zeros(d)
-
-        for t in tqdm(range(self.iter)):
             if self.batch_size < N:
-                rand_indexes = np.random.choice(N, self.batch_size, replace=False)
-                X_batch, y_batch = X[rand_indexes], y[rand_indexes]
-                N_batch = self.batch_size
+                indices = random.sample(range(N), self.batch_size)
+                batchX = [X[index] for index in indices]
+                batchY = [y[index] for index in indices]
             else:
-                X_batch, y_batch = X, y
-                N_batch = N
+                batchX = X
+                batchY = y
 
-            sigm = 1 / (1 + np.exp(y_batch * np.dot(w, X_batch.T).reshape(-1, 1)))
-            gt = - 1 / N_batch * np.sum(X_batch * y_batch * sigm, axis=0) 
+            for xn, yn in zip(batchX, batchY):
+                vsoma += (yn * xn) / (1 + np.exp((yn * w).T @ xn))
 
-            if np.linalg.norm(gt) < 1e-10:
+            gt = vsoma / self.batch_size
+            if LA.norm(gt) < 0.0001:
                 break
-            
-            w -= self.eta  * gt 
+            w = w + (self.eta * gt)
 
         self.w = w
-    
+
     def predict_prob(self, X):
-        return 1 / (1 + np.exp(-np.dot(X, self.w)))
+        return [(1 / (1 + np.exp(-(self.w.T @ x)))) for x in X]
 
     def predict(self, X):
-        pred = self.predict_prob(X)
-        y = np.where(pred >= 0.5, 1, -1)
-        return y 
+        return [1 if (1 / (1 + np.exp(-(self.w.T @ x)))) >= 0.5 else -1 for x in X]
 
     def get_w(self):
         return self.w
-    
-    def set_w(self, w):
-        self.w = w
+
+    def getRegressionY(self, regressionX, shift=0):
+        return (-self.w[0] + shift - self.w[1] * regressionX) / self.w[2]
 
 
 class OneVsAll:
