@@ -25,7 +25,9 @@ class PLA:
         listaPCI = constroiListaPCI(X, y, self.w)
         
         iter_count = 0
-        while len(listaPCI) > 0 and iter_count < self.max_iter:
+        for _ in tqdm(range(self.max_iter)):
+            if len(listaPCI) == 0:
+                break
             i = np.random.choice(listaPCI)
             
             self.w = self.w + y[i] * X[i]
@@ -113,7 +115,7 @@ class LinearRegression():
         return self.w
 
 class LogisticRegression:
-    def __init__(self, eta=0.1, tmax=1000, bs=2048):
+    def __init__(self, eta, tmax, bs):
         self.eta = eta
         self.tmax = tmax
         self.batch_size = bs
@@ -126,9 +128,9 @@ class LogisticRegression:
         w = np.zeros(d, dtype=float)
         self.w = []
 
-        for i in range(self.tmax):
+        for i in tqdm(range(self.tmax)):
             vsoma = np.zeros(d, dtype=float)
-
+            
             if self.batch_size < N:
                 indices = random.sample(range(N), self.batch_size)
                 batchX = [X[index] for index in indices]
